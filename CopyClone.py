@@ -4,26 +4,39 @@ Python File: copy_files.py
 Author     : Damien Keffyn
 Company    : Sentinal IT
 Date       : September 26, 2024
-Description: This script allows the user to select a source 
-             and destination directory, and recursively copies 
-             all files and folders from the source to the destination, 
-             ignoring hidden files and folders. It also skips files 
-             that result in access errors (e.g., Access Denied).
+Description: 
+    This script allows the user to select a source 
+    and destination directory, and recursively copies 
+    all files and folders from the source to the destination, 
+    ignoring hidden files and folders, skipping files that result 
+    in access errors, and excluding specified file types. It 
+    also logs each file operation and provides a progress bar for 
+    large copy operations.
 
 Features:
     - Ignores hidden files and folders during the copy operation.
+    - Allows the user to exclude specific file types from being copied.
+    - Logs copied files, skipped files, and errors into 'copy_log.txt'.
+    - Displays a progress bar to indicate the progress of large operations.
     - Skips files that cause access errors and continues copying.
     - Maintains the directory structure from the source to the destination.
     - Uses os.walk() to recursively walk through directories.
     - Cross-platform compatibility for Windows and Unix-like systems.
 
+Requirements:
+    - Install the 'tqdm' library for the progress bar:
+        pip install tqdm
+
 Usage:
     1. Run the script using Python.
     2. Enter the source and destination directories when prompted.
-    3. The script will display the status of each file being copied.
+    3. Optionally, enter file types (extensions) to exclude from the copy.
+    4. The script will display a progress bar and log each operation 
+       to 'copy_log.txt'.
 
 -------------------------------------------------------
 """
+
 import os
 import shutil
 import fnmatch
