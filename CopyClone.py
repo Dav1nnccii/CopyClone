@@ -24,17 +24,20 @@ Usage:
 
 -------------------------------------------------------
 """
-
-
 import os
 import shutil
 import fnmatch
 import sys
+import logging
+from tqdm import tqdm  # Progress bar library
+
+# Set up logging
+logging.basicConfig(filename='copy_log.txt', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Function to check if a file or folder is hidden
 def is_hidden(filepath):
     name = os.path.basename(os.path.abspath(filepath))
-    # On Windows, hidden files/folders have the hidden attribute.
     if sys.platform == 'win32':
         try:
             import ctypes
@@ -43,37 +46,53 @@ def is_hidden(filepath):
         except:
             return False
     else:
-        # On Unix-like systems, hidden files/folders start with a dot (.)
         return name.startswith('.')
 
-# Function to copy files and folders, ignoring hidden files/folders
-def copy_files_and_folders(src, dst):
-    for root, dirs, files in os.walk(src):
-        # Remove hidden directories from the list so they are not traversed
-        dirs[:] = [d for d in dirs if not is_hidden(os.path.join(root, d))]
-        
-        for file in files:
-            # Skip hidden files
-            if is_hidden(os.path.join(root, file)):
-                continue
+# Function to copy files and folders, ignoring hidden files/folders, and excluding certain file types
+def copy_files_and_folders(src, dst, exclude_extensions):
+    total_files = sum([len(files) for _, _, files in os.walk(src)])
+    copied_files = 0
 
-            # Construct full file path
-            src_file = os.path.join(root, file)
-            rel_path = os.path.relpath(root, src)
-            dest_dir = os.path.join(dst, rel_path)
+    # Initialize progress bar
+    with tqdm(total=total_files, unit="file") as progress_bar:
+        for root, dirs, files in os.walk(src):
+            # Remove hidden directories from the list so they are not traversed
+            dirs[:] = [d for d in dirs if not is_hidden(os.path.join(root, d))]
 
-            # Create the destination directory if it doesn't exist
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
+            for file in files:
+                # Skip hidden files
+                if is_hidden(os.path.join(root, file)):
+                    logging.info(f"Skipped hidden file: {os.path.join(root, file)}")
+                    continue
 
-            # Copy file, handling "Access Denied" or other errors
-            try:
-                shutil.copy2(src_file, dest_dir)
-                print(f"Copied: {src_file} to {dest_dir}")
-            except PermissionError:
-                print(f"Access Denied: {src_file}. Skipping...")
-            except Exception as e:
-                print(f"Error copying {src_file}: {e}")
+                # Skip files with excluded extensions
+                if any(fnmatch.fnmatch(file, f"*.{ext}") for ext in exclude_extensions):
+                    logging.info(f"Skipped excluded file type: {os.path.join(root, file)}")
+                    continue
+
+                # Construct full file path
+                src_file = os.path.join(root, file)
+                rel_path = os.path.relpath(root, src)
+                dest_dir = os.path.join(dst, rel_path)
+
+                # Create the destination directory if it doesn't exist
+                if not os.path.exists(dest_dir):
+                    os.makedirs(dest_dir)
+
+                # Copy file, handling "Access Denied" or other errors
+                try:
+                    shutil.copy2(src_file, dest_dir)
+                    logging.info(f"Copied: {src_file} to {dest_dir}")
+                    copied_files += 1
+                except PermissionError:
+                    logging.error(f"Access Denied: {src_file}. Skipping...")
+                except Exception as e:
+                    logging.error(f"Error copying {src_file}: {e}")
+
+                # Update progress bar
+                progress_bar.update(1)
+
+    print(f"Copied {copied_files} files out of {total_files}. Check 'copy_log.txt' for details.")
 
 # Main function to get user input and run the copy operation
 def main():
@@ -86,9 +105,14 @@ def main():
         print("Source directory does not exist.")
         return
 
+    # Ask the user for file extensions to exclude
+    exclude_extensions = input("Enter file extensions to exclude (comma-separated, e.g., 'exe,sys,tmp'): ")
+    exclude_extensions = [ext.strip() for ext in exclude_extensions.split(',')]
+
     # Start the copying process
     print(f"Starting copy from {src} to {dst} (excluding hidden files and folders)...")
-    copy_files_and_folders(src, dst)
+    logging.info(f"Starting copy operation from {src} to {dst}")
+    copy_files_and_folders(src, dst, exclude_extensions)
     print("Copy operation completed.")
 
 if __name__ == "__main__":
